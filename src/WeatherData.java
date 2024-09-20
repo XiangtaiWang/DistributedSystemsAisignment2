@@ -1,0 +1,19 @@
+public class WeatherData{
+    public String id;
+    public String name;
+    public String state;
+    public String time_zone;
+    public float lat;
+    public float lon;
+    public String local_date_time;
+    public String local_date_time_full;
+    public float air_temp;
+    public float apparent_t;
+    public String cloud;
+    public float dewpt;
+    public float press;
+    public int rel_hum;
+    public String wind_dir;
+    public int wind_spd_kmh;
+    public int wind_spd_kt;
+}
