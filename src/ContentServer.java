@@ -33,12 +33,6 @@ public class ContentServer{
         Timer timer = new Timer();
         timer.schedule(new UpdateWeather(out), 0, 5000);
 
-//        HttpRequest request = HttpRequest.newBuilder()
-//                .uri(URI.create("http://foo.com/"))
-//                .method("PUT", HttpRequest.BodyPublishers.ofString(dataString))
-//                .build();
-//        String rq = ConvertObjectToJson(request);
-
         String line = "";
         while (!line.equals("done")) {
             try {
@@ -64,7 +58,7 @@ public class ContentServer{
         String json;
         try {
             json = om.writeValueAsString(data);
-            System.out.println(json);
+//            System.out.println(json);
             return json;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -106,12 +100,48 @@ public class ContentServer{
         public void run() {
             String fileName = "SampleData";
             WeatherData data = FetchWeatherData(fileName);
-            String dataString = ConvertObjectToJson(data);
+            String body = ConvertObjectToJson(data);
+            String rq = CreatePutRequest(body);
+
             try {
-                outStream.writeBytes(dataString+"\n");
+                outStream.writeBytes(rq+"\n");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private String CreatePutRequest(String body) {
+        String method = "PUT";
+        String resource = "/weather.json";
+        String httpVersion = "HTTP/1.1";
+        String userAgent = "ATOMClient/1/0";
+        String contentType = "application/json";
+        int contentLength = body.getBytes().length;
+
+        StringBuilder request = new StringBuilder();
+        request.append(method)
+                .append(" ")
+                .append(resource)
+                .append(" ")
+                .append(httpVersion)
+                .append("\r\n");
+
+        request.append("User-Agent: ")
+                .append(userAgent)
+                .append("\r\n");
+
+        request.append("Content-Type: ")
+                .append(contentType)
+                .append("\r\n");
+
+        request.append("Content-Length: ")
+                .append(contentLength)
+                .append("\r\n");
+
+        request.append("\r\n");
+        request.append(body);
+
+        return request.toString();
     }
 }
