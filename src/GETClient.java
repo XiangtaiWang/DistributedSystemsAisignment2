@@ -4,14 +4,15 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-public class Client{
-
+public class GETClient {
+    // todo: read response
+    //todo: make get request
     private String address = "127.0.0.1";
     private int port = 4567;
     private Socket socket = null;
     private DataInputStream input = null;
     private DataOutputStream out = null;
-    public Client(){
+    public GETClient(){
         try {
             var socket = new Socket(address, port);
             System.out.println("Connected");
@@ -19,10 +20,6 @@ public class Client{
             input = new DataInputStream(System.in);
             out = new DataOutputStream(
                     socket.getOutputStream());
-        }
-        catch (UnknownHostException u) {
-            System.out.println(u);
-            return;
         }
         catch (IOException i) {
             System.out.println(i);
@@ -49,7 +46,7 @@ public class Client{
         }
     }
     public static void main(String[] args) {
-        Client server = new Client();
+        GETClient server = new GETClient();
     }
 
 }
