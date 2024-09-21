@@ -2,9 +2,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.*;
 import java.net.Socket;
-import java.net.URI;
-import java.net.http.HttpRequest;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class ContentServer{
@@ -29,9 +29,10 @@ public class ContentServer{
             return;
         }
 
-        String fileName = "SampleData";
-        WeatherData data = FetchWeatherData(fileName);
-        String dataString = ConvertObjectToJson(data);
+
+        Timer timer = new Timer();
+        timer.schedule(new UpdateWeather(out), 0, 5000);
+
 //        HttpRequest request = HttpRequest.newBuilder()
 //                .uri(URI.create("http://foo.com/"))
 //                .method("PUT", HttpRequest.BodyPublishers.ofString(dataString))
@@ -95,5 +96,22 @@ public class ContentServer{
 //        String url = args[0];
 //        String filePath = args[1];
         ContentServer server = new ContentServer();
+    }
+    class UpdateWeather extends TimerTask {
+        private DataOutputStream outStream;
+        public UpdateWeather(DataOutputStream out) {
+            outStream = out;
+        }
+
+        public void run() {
+            String fileName = "SampleData";
+            WeatherData data = FetchWeatherData(fileName);
+            String dataString = ConvertObjectToJson(data);
+            try {
+                outStream.writeBytes(dataString+"\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }
