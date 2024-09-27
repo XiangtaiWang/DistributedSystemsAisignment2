@@ -16,6 +16,7 @@ public class AggregationServer{
     }
     public AggregationServer()
     {
+        // todo: periodically remove data?
         try {
             server = new ServerSocket(port);
             System.out.println("Server started");
@@ -66,18 +67,13 @@ public class AggregationServer{
                         return;
                     } else {
                         // todo: handle request
-//                        System.out.println("received data");
-//                        System.out.println(message);
                         gatheredMessage.append(message).append("\n");
                         if (message.startsWith(String.valueOf('{')) && message.endsWith("}")) {
-//                            System.out.println("gatherd message before cleaning\n"+gatheredMessage);
                             String response = requestHandler.HandleRequest(gatheredMessage.toString());;
                             out.writeBytes(response + "\n\r");
                             out.flush();
                             gatheredMessage.delete(0, gatheredMessage.length());
-//                            System.out.println("gatherd message after cleaning\n"+gatheredMessage);
                         }
-
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -105,7 +101,6 @@ public class AggregationServer{
                 response = GetWeatherRequest();
             }
             else {
-
                 response = BadRequest();
             }
 
@@ -119,13 +114,28 @@ public class AggregationServer{
         private String UpdateWeatherRequest(String body){
             //todo: 201 if first create, 200 update
             //todo: convert to object
+            ObjectMapper objectMapper = new ObjectMapper();
+            WeatherData data;
+            try {
+                data = objectMapper.readValue(body, WeatherData.class);
+            } catch (JsonProcessingException e) {
+                //todo: return internal server error
+                throw new RuntimeException(e);
 
-            if (!HistoryFileHandler.IsFileExist()){
-                HistoryFileHandler.CreateHistoryFile();
-//                HistoryFileHandler.Update(body);
-            }else{
-//                HistoryFileHandler.Update(body);
             }
+//            try {
+//                System.out.println(objectMapper.writeValueAsString(data));
+//            } catch (JsonProcessingException e) {
+//                throw new RuntimeException(e);
+//            }
+
+//            if (!HistoryFileHandler.IsFileExist()){
+//                HistoryFileHandler.CreateHistoryFile();
+//                HistoryFileHandler.Update(data);
+//            }else{
+//                HistoryFileHandler.Update(data);
+//            }
+            //todo: response
             return null;
         }
         private String GetWeatherRequest() {
@@ -153,6 +163,8 @@ public class AggregationServer{
 
             public static void Update(WeatherData data) {
                 // todo: if exist update, else insert
+                // read and convert to list of weather data,
+
 
             }
             public static void Delete() {
