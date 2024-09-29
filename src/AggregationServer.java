@@ -108,13 +108,57 @@ public class AggregationServer{
         }
 
         private String BadRequest() {
+            CreateResponse(HttpStatus.HTTP_BAD_REQUEST, "{}");
             return null;
         }
+        private String CreateResponse(HttpStatus httpStatus, String body) {
+            int code;
+            switch (httpStatus) {
+                case HTTP_CREATED:
+                    code = 201;
+                    break;
+                case HTTP_SUCCESS:
+                    code = 200;
+                    break;
+                case HTTP_BAD_REQUEST:
+                    code = 400;
+                    break;
+                case HTTP_INTERNAL_ERROR:
+                    code = 500;
+                    break;
+                default:
+                    throw new IllegalStateException("Unexpected value: " + httpStatus);
+            }
+            String status = code + " " + httpStatus.toString();
+            String httpVersion = "HTTP/1.1";
+            String contentType = "application/json";
+            int contentLength = body.getBytes().length;
 
+            StringBuilder response = new StringBuilder();
+            response.append(httpVersion)
+                    .append(" ")
+                    .append(status)
+                    .append("\r\n");
+
+
+            response.append("Content-Type: ")
+                    .append(contentType)
+                    .append("\r\n");
+
+            response.append("Content-Length: ")
+                    .append(contentLength)
+                    .append("\r\n");
+
+            response.append("\r\n");
+            response.append(body);
+
+            return response.toString();
+        }
         private String UpdateWeatherRequest(String body){
             //todo: 201 if first create, 200 update
             ObjectMapper objectMapper = getObjectMapper();
             WeatherData newData;
+            String response;
             try {
                 newData = objectMapper.readValue(body, WeatherData.class);
             } catch (JsonProcessingException e) {
@@ -125,11 +169,15 @@ public class AggregationServer{
             if (!HistoryFileHandler.IsFileExist()){
                 HistoryFileHandler.CreateHistoryFile();
                 HistoryFileHandler.Update(newData);
+                // todo: body=> lamport clock
+                response = CreateResponse(HttpStatus.HTTP_CREATED, "{}");
             }else{
                 HistoryFileHandler.Update(newData);
+                // todo: body=> lamport clock
+                response = CreateResponse(HttpStatus.HTTP_SUCCESS, "{}");
             }
-            //todo: response
-            return null;
+
+            return response;
         }
 
         private String GetWeatherRequest() {
@@ -249,6 +297,12 @@ public class AggregationServer{
                 return data.toString();
 
             }
+        }
+        enum HttpStatus {
+            HTTP_CREATED,
+            HTTP_SUCCESS,
+            HTTP_BAD_REQUEST,
+            HTTP_INTERNAL_ERROR,
         }
     }
 }

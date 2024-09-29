@@ -8,8 +8,8 @@ import java.util.TimerTask;
 
 
 public class ContentServer{
-    //todo: read response after put request
-    //todo: make put request
+    private BufferedReader brinp;
+    // todo: lamport clock
     private String address = "127.0.0.1";
     private int port = 4567;
     private Socket socket = null;
@@ -20,6 +20,8 @@ public class ContentServer{
         try {
             var socket = new Socket(address, port);
             System.out.println("Connected");
+            InputStream inp = socket.getInputStream();
+            brinp = new BufferedReader(new InputStreamReader(inp));
             input = new DataInputStream(System.in);
             out = new DataOutputStream(
                     socket.getOutputStream());
@@ -29,10 +31,9 @@ public class ContentServer{
             return;
         }
 
-
         Timer timer = new Timer();
-        timer.schedule(new UpdateWeather(out), 0, 5000);
-
+        timer.schedule(new UpdateWeatherTask(out), 0, 5000);
+        new DisplayResponseThread(brinp).start();
         String line = "";
         while (!line.equals("done")) {
             try {
@@ -58,7 +59,6 @@ public class ContentServer{
         String json;
         try {
             json = om.writeValueAsString(data);
-//            System.out.println(json);
             return json;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -91,9 +91,9 @@ public class ContentServer{
 //        String filePath = args[1];
         ContentServer server = new ContentServer();
     }
-    class UpdateWeather extends TimerTask {
+    class UpdateWeatherTask extends TimerTask {
         private DataOutputStream outStream;
-        public UpdateWeather(DataOutputStream out) {
+        public UpdateWeatherTask(DataOutputStream out) {
             outStream = out;
         }
 
@@ -143,5 +143,33 @@ public class ContentServer{
         request.append(body);
 
         return request.toString();
+    }
+    class DisplayResponseThread extends Thread {
+        private BufferedReader inStream;
+        public DisplayResponseThread(BufferedReader brinp) {
+            inStream = brinp;
+        }
+        public void run() {
+            String message;
+            StringBuilder gatheredMessage =  new StringBuilder();
+            while (true) {
+                try {
+                    message = brinp.readLine();
+                    if ((message == null) || message.equalsIgnoreCase("done")) {
+                        socket.close();
+                        return;
+                    } else {
+                        gatheredMessage.append(message).append("\n");
+                        if (message.startsWith(String.valueOf('{')) && message.endsWith("}")) {
+                            System.out.println(gatheredMessage.toString());
+                            gatheredMessage.delete(0, gatheredMessage.length());
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+        }
     }
 }
