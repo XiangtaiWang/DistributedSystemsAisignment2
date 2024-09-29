@@ -1,3 +1,5 @@
+import java.time.LocalDateTime;
+
 public class WeatherData{
     public String id;
     public String name;
@@ -16,6 +18,7 @@ public class WeatherData{
     public String wind_dir;
     public int wind_spd_kmh;
     public int wind_spd_kt;
+    public LocalDateTime lastUpdateTime;
 
     public void setProperty(String key, String value) {
         if (key.equals("id")) {
@@ -72,5 +75,16 @@ public class WeatherData{
 //        else {
 //            throw new RuntimeException("Unknown property: " + key);
 //        }
+    }
+    public void setLastUpdateTime() {
+        LocalDateTime now = LocalDateTime.now();
+        lastUpdateTime = now;
+    }
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        WeatherData data = (WeatherData) obj;
+        return id.equals(data.id);
     }
 }
