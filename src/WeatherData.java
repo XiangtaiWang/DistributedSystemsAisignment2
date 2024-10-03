@@ -77,8 +77,7 @@ public class WeatherData{
 //        }
     }
     public void setLastUpdateTime() {
-        LocalDateTime now = LocalDateTime.now();
-        lastUpdateTime = now;
+        lastUpdateTime = LocalDateTime.now();
     }
     @Override
     public boolean equals(Object obj) {
