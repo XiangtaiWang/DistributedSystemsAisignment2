@@ -12,14 +12,12 @@ public class AggregationServer{
     private final int port = 4567;
     private Socket socket = null;
     private ServerSocket server = null;
-    private LamportClock clock;
+
     public static void main(String[] args)  {
         AggregationServer aggregationServer = new AggregationServer();
     }
     public AggregationServer()
     {
-        // todo: implement lamport clock and store it as well
-        // todo: when initializing, restore clock
         HistoryFileHandler historyFileHandler = new HistoryFileHandler();
         RequestHandler requestHandler = new RequestHandler(historyFileHandler);
         try {
@@ -58,17 +56,17 @@ public class AggregationServer{
     }
 
     class RemoveTooOldDataTask extends TimerTask {
-        private HistoryFileHandler historyFileHandler;
+        private final HistoryFileHandler historyFileHandler;
         public RemoveTooOldDataTask(HistoryFileHandler historyFileHandlerDI) {
             historyFileHandler = historyFileHandlerDI;
         }
         public void run() {
-            historyFileHandler.DeleteOldData();
+            historyFileHandler.CleaningHistoryData();
         }
     }
     class HistoryFileHandler{
         public String fileName = "history.json";
-        private List<WeatherData> records;
+
         public boolean IsFileExist() {
             File f = new File(fileName);
             return f.exists() && !f.isDirectory();
@@ -88,7 +86,7 @@ public class AggregationServer{
         public void UpdateWeather(WeatherData data) {
             HistoryContent historyContent = LoadContent();
             data.setLastUpdateTime();
-            historyContent.weatherData.add(data);
+            historyContent.weatherData.add(0, data);
             WriteToFile(historyContent);
             System.out.println("Successfully update History File");
         }
@@ -105,15 +103,34 @@ public class AggregationServer{
             }
         }
 
-        public void DeleteOldData() {
-            //todo: can only store up to 20 record, if a station not update in last 30s, delete as well
-
+        public void CleaningHistoryData() {
             HistoryContent historyContent = LoadContent();
+
+            if (historyContent.weatherData.size() > 20) {
+                historyContent.weatherData = historyContent.weatherData.subList(0, 20);
+            }
+
+            HashMap<String, LocalDateTime> lastUpdateTimeById = GetLastUpdateTimeById(historyContent);
             LocalDateTime thirtySecondsAgo = LocalDateTime.now().minusSeconds(30);
-            historyContent.weatherData.removeIf(weatherData -> weatherData.lastUpdateTime.isBefore(thirtySecondsAgo));
+            for(Map.Entry<String, LocalDateTime> entry : lastUpdateTimeById.entrySet()) {
+                if(entry.getValue().isBefore(thirtySecondsAgo)) {
+                    historyContent.weatherData.removeIf(weatherData -> weatherData.id.equals(entry.getKey()));
+                }
+            }
+
             historyContent.clock.ReceivedAction(historyContent.clock.counter);
             WriteToFile(historyContent);
-            System.out.println("Successfully remove Old Data.");
+            System.out.println("Successfully clean Old Data.");
+        }
+
+        private HashMap<String, LocalDateTime> GetLastUpdateTimeById(HistoryContent historyContent) {
+            HashMap<String, LocalDateTime> updateTime = new HashMap<>();{}
+            for (WeatherData weatherData : historyContent.weatherData) {
+                if (!updateTime.containsKey(weatherData.id) || weatherData.lastUpdateTime.isAfter(updateTime.get(weatherData.id))) {
+                    updateTime.put(weatherData.id, weatherData.lastUpdateTime);
+                }
+            }
+            return updateTime;
         }
 
         public String GetWeather() {
@@ -271,30 +288,26 @@ public class AggregationServer{
                 default:
                     throw new IllegalStateException("Unexpected value: " + httpStatus);
             }
-            String status = code + " " + httpStatus.toString();
+            String status = code + " " + httpStatus;
             String httpVersion = "HTTP/1.1";
             String contentType = "application/json";
             int contentLength = body.getBytes().length;
 
-            StringBuilder response = new StringBuilder();
-            response.append(httpVersion)
-                    .append(" ")
-                    .append(status)
-                    .append("\r\n");
 
+            String response = httpVersion +
+                    " " +
+                    status +
+                    "\r\n" +
+                    "Content-Type: " +
+                    contentType +
+                    "\r\n" +
+                    "Content-Length: " +
+                    contentLength +
+                    "\r\n" +
+                    "\r\n" +
+                    body;
 
-            response.append("Content-Type: ")
-                    .append(contentType)
-                    .append("\r\n");
-
-            response.append("Content-Length: ")
-                    .append(contentLength)
-                    .append("\r\n");
-
-            response.append("\r\n");
-            response.append(body);
-
-            return response.toString();
+            return response;
         }
         private String ProcessUpdateWeatherRequest(String body) {
             ObjectMapper objectMapper = getObjectMapper();
