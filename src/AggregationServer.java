@@ -1,11 +1,8 @@
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.time.LocalDateTime;
 import java.util.*;
 
 public class AggregationServer{
@@ -44,15 +41,10 @@ public class AggregationServer{
 
     }
 
-    private static ObjectMapper getObjectMapper() {
+    public static ObjectMapper getObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         return objectMapper;
-    }
-
-    private LamportClock InitialIzeClock() {
-        LamportClock clock = new LamportClock();
-        return clock;
     }
 
     class RemoveTooOldDataTask extends TimerTask {
@@ -62,140 +54,6 @@ public class AggregationServer{
         }
         public void run() {
             historyFileHandler.CleaningHistoryData();
-        }
-    }
-    class HistoryFileHandler{
-        public String fileName = "history.json";
-
-        public boolean IsFileExist() {
-            File f = new File(fileName);
-            return f.exists() && !f.isDirectory();
-        }
-
-        public void CreateHistoryFile() {
-            File file = new File(fileName);
-            try {
-                file.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            WriteEmptyHistoryContent();
-            System.out.println("Successfully Initialize HistoryFile.");
-        }
-
-        public void UpdateWeather(WeatherData data) {
-            HistoryContent historyContent = LoadContent();
-            data.setLastUpdateTime();
-            historyContent.weatherData.add(0, data);
-            WriteToFile(historyContent);
-            System.out.println("Successfully update History File");
-        }
-
-        private void WriteToFile(HistoryContent historyContent) {
-            try {
-                FileWriter myWriter = new FileWriter(fileName);
-                ObjectMapper objectMapper = getObjectMapper();
-                objectMapper.writeValue(myWriter, historyContent);
-                myWriter.close();
-            } catch (IOException e) {
-                System.out.println("An error occurred.");
-                e.printStackTrace();
-            }
-        }
-
-        public void CleaningHistoryData() {
-            HistoryContent historyContent = LoadContent();
-
-            if (historyContent.weatherData.size() > 20) {
-                historyContent.weatherData = historyContent.weatherData.subList(0, 20);
-            }
-
-            HashMap<String, LocalDateTime> lastUpdateTimeById = GetLastUpdateTimeById(historyContent);
-            LocalDateTime thirtySecondsAgo = LocalDateTime.now().minusSeconds(30);
-            for(Map.Entry<String, LocalDateTime> entry : lastUpdateTimeById.entrySet()) {
-                if(entry.getValue().isBefore(thirtySecondsAgo)) {
-                    historyContent.weatherData.removeIf(weatherData -> weatherData.id.equals(entry.getKey()));
-                }
-            }
-
-            historyContent.clock.ReceivedAction(historyContent.clock.counter);
-            WriteToFile(historyContent);
-            System.out.println("Successfully clean Old Data.");
-        }
-
-        private HashMap<String, LocalDateTime> GetLastUpdateTimeById(HistoryContent historyContent) {
-            HashMap<String, LocalDateTime> updateTime = new HashMap<>();{}
-            for (WeatherData weatherData : historyContent.weatherData) {
-                if (!updateTime.containsKey(weatherData.id) || weatherData.lastUpdateTime.isAfter(updateTime.get(weatherData.id))) {
-                    updateTime.put(weatherData.id, weatherData.lastUpdateTime);
-                }
-            }
-            return updateTime;
-        }
-
-        public String GetWeather() {
-            HistoryContent historyContent = LoadContent();
-            ObjectMapper objectMapper = getObjectMapper();
-            try {
-                return objectMapper.writeValueAsString(historyContent);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-
-        }
-
-        private HistoryContent ConvertToHistoryContentObj(String data) {
-            ObjectMapper objectMapper = getObjectMapper();
-            HistoryContent history;
-            try {
-//                history = objectMapper.readValue(data, new TypeReference<List<WeatherData>>(){});
-                history = objectMapper.readValue(data, HistoryContent.class);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-            return history;
-        }
-
-        private String ReadHistoryFile() {
-            try {
-                StringBuilder data = new StringBuilder();
-                File myObj = new File(fileName);
-                Scanner myReader = new Scanner(myObj);
-                while (myReader.hasNextLine()) {
-                    data.append(myReader.nextLine());
-                }
-                myReader.close();
-                return data.toString();
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-                throw new RuntimeException(e);
-            }
-        }
-
-        public HistoryContent LoadContent() {
-            try {
-                if (IsFileExist()) {
-                    String content = ReadHistoryFile();
-                    HistoryContent historyContent = ConvertToHistoryContentObj(content);
-                    return historyContent;
-                }
-            }catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-            WriteEmptyHistoryContent();
-            return LoadContent();
-        }
-
-        private void WriteEmptyHistoryContent() {
-            HistoryContent historyContent = new HistoryContent(new ArrayList<>(), new LamportClock());
-            WriteToFile(historyContent);
-        }
-
-        public void UpdateClock(int incomingCounter) {
-            HistoryContent historyContent = LoadContent();
-            historyContent.clock.ReceivedAction(incomingCounter);
-            WriteToFile(historyContent);
         }
     }
 
@@ -228,7 +86,7 @@ public class AggregationServer{
                         return;
                     } else {
                         gatheredMessage.append(message).append("\n");
-                        if (message.startsWith(String.valueOf('{')) && message.endsWith("}")) {
+                        if (isBody(message)) {
                             String response = requestHandler.HandleRequest(gatheredMessage.toString());
                             out.writeBytes(response + "\n\r");
                             out.flush();
@@ -241,107 +99,9 @@ public class AggregationServer{
                 }
             }
         }
-    }
-    class RequestHandler{
-        private final HistoryFileHandler historyFileHandler;
-        public RequestHandler(HistoryFileHandler historyFileHandlerDI) {
-            historyFileHandler = historyFileHandlerDI;
-        }
-        public String HandleRequest(String request) {
-            String[] split = request.split("\n");
 
-            String response;
-            if (split[0].startsWith("PUT") ){
-                System.out.println("Received PUT request");
-                String body = split[split.length - 1];
-                response = ProcessUpdateWeatherRequest(body);
-            }
-            else if (split[0].startsWith("GET") ){
-                response = GetWeatherRequest();
-            }
-            else {
-                response = BadRequest();
-            }
-
-            return response;
-        }
-
-        private String BadRequest() {
-            CreateResponse(HttpStatus.HTTP_BAD_REQUEST, "{}");
-            return null;
-        }
-        private String CreateResponse(HttpStatus httpStatus, String body) {
-            int code;
-            switch (httpStatus) {
-                case HTTP_CREATED:
-                    code = 201;
-                    break;
-                case HTTP_SUCCESS:
-                    code = 200;
-                    break;
-                case HTTP_BAD_REQUEST:
-                    code = 400;
-                    break;
-                case HTTP_INTERNAL_ERROR:
-                    code = 500;
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + httpStatus);
-            }
-            String status = code + " " + httpStatus;
-            String httpVersion = "HTTP/1.1";
-            String contentType = "application/json";
-            int contentLength = body.getBytes().length;
-
-
-            String response = httpVersion +
-                    " " +
-                    status +
-                    "\r\n" +
-                    "Content-Type: " +
-                    contentType +
-                    "\r\n" +
-                    "Content-Length: " +
-                    contentLength +
-                    "\r\n" +
-                    "\r\n" +
-                    body;
-
-            return response;
-        }
-        private String ProcessUpdateWeatherRequest(String body) {
-            ObjectMapper objectMapper = getObjectMapper();
-            UpdateWeatherRequest rq;
-            String response;
-
-            try {
-                rq = objectMapper.readValue(body, UpdateWeatherRequest.class);
-                if (!historyFileHandler.IsFileExist()){
-                    System.out.println("file does not exist, initializing...");
-                    historyFileHandler.CreateHistoryFile();
-                    System.out.println("file initializing finished, weather updating...");
-                    historyFileHandler.UpdateWeather(rq.weatherData);
-                    historyFileHandler.UpdateClock(rq.lamportClock.counter);
-                    HistoryContent historyContent = historyFileHandler.LoadContent();
-                    response = CreateResponse(HttpStatus.HTTP_CREATED, objectMapper.writeValueAsString(historyContent.clock));
-
-                }else{
-                    System.out.println("weather updating...");
-                    historyFileHandler.UpdateWeather(rq.weatherData);
-                    historyFileHandler.UpdateClock(rq.lamportClock.counter);
-                    HistoryContent historyContent = historyFileHandler.LoadContent();
-                    response = CreateResponse(HttpStatus.HTTP_SUCCESS, objectMapper.writeValueAsString(historyContent.clock));
-                }
-            }catch(Exception e){
-                response = CreateResponse(HttpStatus.HTTP_INTERNAL_ERROR, e.getMessage());
-            }
-
-            return response;
-        }
-
-        private String GetWeatherRequest() {
-            String data = historyFileHandler.GetWeather();
-            return CreateResponse(HttpStatus.HTTP_SUCCESS, data);
+        private boolean isBody(String message) {
+            return message.startsWith(String.valueOf('{')) && message.endsWith("}");
         }
     }
 }

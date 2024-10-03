@@ -9,7 +9,6 @@ import java.util.TimerTask;
 
 public class ContentServer{
     private BufferedReader brinp;
-    // todo: lamport clock
     private String address = "127.0.0.1";
     private int port = 4567;
     private Socket socket = null;
@@ -33,7 +32,7 @@ public class ContentServer{
         LamportClock clock = new LamportClock();
         Timer timer = new Timer();
         timer.schedule(new UpdateWeatherTask(out, clock), 0, 5000);
-        new DisplayResponseThread(brinp, clock).start();
+        new ResponseThread(brinp, clock).start();
         String line = "";
         while (!line.equals("done")) {
             try {
@@ -146,10 +145,10 @@ public class ContentServer{
 
         return request.toString();
     }
-    class DisplayResponseThread extends Thread {
+    class ResponseThread extends Thread {
         private final LamportClock clock;
         private BufferedReader inStream;
-        public DisplayResponseThread(BufferedReader brinp, LamportClock clock) {
+        public ResponseThread(BufferedReader brinp, LamportClock clock) {
             inStream = brinp;
             this.clock = clock;
         }
