@@ -8,6 +8,10 @@ class RequestHandler {
     }
 
     public String HandleRequest(String request) {
+        // if start with put=>update
+        // else if start with get=>get weather
+        // else bad request
+
         String[] split = request.split("\n");
 
         String response;
@@ -16,8 +20,9 @@ class RequestHandler {
             String body = split[split.length - 1];
             response = ProcessUpdateWeatherRequest(body);
         } else if (split[0].startsWith("GET")) {
-            System.out.println("Received PUT request");
-            response = GetWeatherRequest();
+            String id = split[0].split(" ")[1];
+            System.out.println("Received Get request, id: " + id);
+            response = ProcessGetWeatherRequest(id);
         } else {
             response = BadRequest();
         }
@@ -30,6 +35,7 @@ class RequestHandler {
     }
 
     private String CreateResponse(HttpStatus httpStatus, String body) {
+        // generate response
         int code;
         switch (httpStatus) {
             case HTTP_CREATED:
@@ -70,12 +76,14 @@ class RequestHandler {
     }
 
     private String ProcessUpdateWeatherRequest(String body) {
+        //if file not exist, create then update
+        //else just update
         ObjectMapper objectMapper = AggregationServer.getObjectMapper();
-        UpdateWeatherRequest rq;
+        WeatherRequest rq;
         String response;
 
         try {
-            rq = objectMapper.readValue(body, UpdateWeatherRequest.class);
+            rq = objectMapper.readValue(body, WeatherRequest.class);
             if (!historyFileHandler.IsFileExist()) {
                 System.out.println("file does not exist, initializing...");
                 historyFileHandler.CreateHistoryFile();
@@ -99,8 +107,9 @@ class RequestHandler {
         return response;
     }
 
-    private String GetWeatherRequest() {
-        String data = historyFileHandler.GetWeather();
+    private String ProcessGetWeatherRequest(String id) {
+        String data = historyFileHandler.GetWeather(id);
+
         return CreateResponse(HttpStatus.HTTP_SUCCESS, data);
     }
 }

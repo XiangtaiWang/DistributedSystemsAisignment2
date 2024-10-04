@@ -51,17 +51,15 @@ class RequestHandlerTest {
 
     @Test
     void testHandleRequest_GetRequest() throws Exception {
-        // todo: need include clock
-        String request = "GET /weather\n";
-        String mockWeatherData = "{\"weatherData\":[],\"clock\":{\"counter\":0}}";
-        when(mockHistoryFileHandler.GetWeather()).thenReturn(mockWeatherData);
+        String request = "GET all";
+//        when(mockHistoryFileHandler.LoadContent()).thenReturn(new HistoryContent(new ArrayList<>(), new LamportClock()));
+        when(mockHistoryFileHandler.GetWeather(any())).thenReturn("\"weatherData\":[],\"counter\":0");
         String actual = requestHandler.HandleRequest(request);
 
-        // Assert that the response is correct for HTTP_SUCCESS
         assertTrue(actual.contains("200 HTTP_SUCCESS"));
         assertTrue(actual.contains("\"weatherData\""));
         assertTrue(actual.contains("\"counter\""));
-        verify(mockHistoryFileHandler).GetWeather();
+        verify(mockHistoryFileHandler).GetWeather(any());
     }
 
     @Test

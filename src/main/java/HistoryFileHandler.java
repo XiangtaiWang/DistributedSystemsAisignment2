@@ -19,6 +19,7 @@ public class HistoryFileHandler {
     }
 
     public void CreateHistoryFile() {
+        // try create file, if exception then write empty
         File file = new File(fileName);
         try {
             file.createNewFile();
@@ -30,6 +31,7 @@ public class HistoryFileHandler {
     }
 
     public void UpdateWeather(WeatherData data) {
+        // read file, insert new data, then write back
         HistoryContent historyContent = LoadContent();
         data.setLastUpdateTime();
         historyContent.weatherData.add(0, data);
@@ -38,6 +40,7 @@ public class HistoryFileHandler {
     }
 
     protected void WriteToFile(HistoryContent historyContent) {
+        //write history content to file
         try {
             FileWriter myWriter = new FileWriter(fileName);
             ObjectMapper objectMapper = AggregationServer.getObjectMapper();
@@ -50,6 +53,8 @@ public class HistoryFileHandler {
     }
 
     public void CleaningHistoryData() {
+        // remove records which index more than 20, remove if an ID hasn't updated recent 30s
+        // clock increment since it is an action will impact data
         HistoryContent historyContent = LoadContent();
 
         if (historyContent.weatherData.size() > 20) {
@@ -70,33 +75,55 @@ public class HistoryFileHandler {
     }
 
     private HashMap<String, LocalDateTime> GetLastUpdateTimeById(HistoryContent historyContent) {
-        HashMap<String, LocalDateTime> updateTime = new HashMap<>();
-        {
-        }
+        // generate a hash map contain last update time by each id
+        HashMap<String, LocalDateTime> updateTimeTable = new HashMap<>();{}
         for (WeatherData weatherData : historyContent.weatherData) {
-            if (!updateTime.containsKey(weatherData.id) || weatherData.lastUpdateTime.isAfter(updateTime.get(weatherData.id))) {
-                updateTime.put(weatherData.id, weatherData.lastUpdateTime);
+            if (!updateTimeTable.containsKey(weatherData.id) || weatherData.lastUpdateTime.isAfter(updateTimeTable.get(weatherData.id))) {
+                updateTimeTable.put(weatherData.id, weatherData.lastUpdateTime);
             }
         }
-        return updateTime;
+        return updateTimeTable;
     }
 
-    public String GetWeather() {
+    public String GetWeather(String id) {
+        //if id != all, find specific weather data, else return all data
+        String data;
         HistoryContent historyContent = LoadContent();
         ObjectMapper objectMapper = AggregationServer.getObjectMapper();
-        try {
-            return objectMapper.writeValueAsString(historyContent);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
 
+        if(!id.equals("all" )){
+            HistoryContent weatherInfo = new HistoryContent();
+            weatherInfo.clock = historyContent.clock;
+            for (WeatherData weather : historyContent.weatherData) {
+                if (weather.id.equals(id)) {
+                    weatherInfo.weatherData = new ArrayList<>(){};
+                    weatherInfo.weatherData.add(weather);
+                    break;
+                }
+            }
+
+            try {
+                data = objectMapper.writeValueAsString(weatherInfo);
+            } catch (JsonProcessingException e) {
+                System.out.println("An error occurred.");
+                throw new RuntimeException(e);
+            }
+        }else {
+            try {
+                data = objectMapper.writeValueAsString(historyContent);
+            } catch (JsonProcessingException e) {
+                System.out.println("An error occurred. All");
+                throw new RuntimeException(e);
+            }
+        }
+        return data;
     }
 
     private HistoryContent ConvertToHistoryContentObj(String data) {
+        // convert json str to HistoryContentObj
         ObjectMapper objectMapper = AggregationServer.getObjectMapper();
         HistoryContent history;
         try {
-//                history = objectMapper.readValue(data, new TypeReference<List<WeatherData>>(){});
             history = objectMapper.readValue(data, HistoryContent.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -105,6 +132,7 @@ public class HistoryFileHandler {
     }
 
     private String ReadHistoryFile() {
+        // read file content as string
         try {
             StringBuilder data = new StringBuilder();
             File myObj = new File(fileName);
@@ -121,6 +149,8 @@ public class HistoryFileHandler {
     }
 
     public HistoryContent LoadContent() {
+        // read file, convert to HistoryContent, then return
+        // if format or sth wrong, re-initialize data
         try {
             if (IsFileExist()) {
                 String content = ReadHistoryFile();
@@ -140,6 +170,7 @@ public class HistoryFileHandler {
     }
 
     public void ClockIncrement(int incomingCounter) {
+        // had action, compare incoming lamportclock counter then +1
         HistoryContent historyContent = LoadContent();
         historyContent.clock.ReceivedAction(incomingCounter);
         WriteToFile(historyContent);

@@ -40,7 +40,7 @@ public class HistoryFileHandlerTests {
 
     @Test
     void testUpdateWeather_UpdatesWeatherDataSuccessfully() {
-        WeatherData weatherData = mock(WeatherData.class);
+        WeatherData weatherData = new WeatherData();
         historyFileHandler.UpdateWeather(weatherData);
 
         HistoryContent historyContent = historyFileHandler.LoadContent();
@@ -48,7 +48,7 @@ public class HistoryFileHandlerTests {
     }
     @Test
     void testUpdateWeather_UpdatesWeatherTwice() {
-        WeatherData weatherData = mock(WeatherData.class);
+        WeatherData weatherData = new WeatherData();
         historyFileHandler.UpdateWeather(weatherData);
         historyFileHandler.UpdateWeather(weatherData);
 
@@ -83,7 +83,7 @@ public class HistoryFileHandlerTests {
         ObjectMapper mockMapper = mock(ObjectMapper.class);
         when(mockMapper.writeValueAsString(any())).thenReturn("{\"weatherData\":[],\"clock\":{\"counter\":0}}");
 
-        String jsonResult = historyFileHandler.GetWeather();
+        String jsonResult = historyFileHandler.GetWeather("all");
         assertEquals("{\"weatherData\":[],\"clock\":{\"counter\":0}}", jsonResult);
     }
 

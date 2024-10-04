@@ -86,4 +86,5 @@ public class WeatherData{
         WeatherData data = (WeatherData) obj;
         return id.equals(data.id);
     }
+    public WeatherData() {}
 }

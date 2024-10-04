@@ -6,14 +6,18 @@ import java.net.Socket;
 import java.util.*;
 
 public class AggregationServer{
-    private final int port = 4567;
     private Socket socket = null;
     private ServerSocket server = null;
 
     public static void main(String[] args)  {
-        AggregationServer aggregationServer = new AggregationServer();
+        int port = 4567;
+        try {
+            port = Integer.parseInt(args[0]);
+        } finally {
+            AggregationServer aggregationServer = new AggregationServer(port);
+        }
     }
-    public AggregationServer()
+    public AggregationServer(int port)
     {
         HistoryFileHandler historyFileHandler = new HistoryFileHandler();
         RequestHandler requestHandler = new RequestHandler(historyFileHandler);
